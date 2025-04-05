@@ -3,15 +3,42 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 
+// 定义接口
+interface Player {
+  id: string;
+  symbol: string;
+  isHost: boolean;
+}
+
+interface Room {
+  id: string;
+  players: Player[];
+  currentPlayer: number;
+  boardSize: number;
+  gridSize: number;
+  winLength: number;
+  board: (string | null)[];
+  gameStarted: boolean;
+  gameOver: boolean;
+  winner: string | null;
+}
+
 // 存储游戏房间信息
-const rooms: Record<string, any> = {};
+const rooms: Record<string, Room> = {};
+
+// 扩展Next.js中的Socket类型
+interface SocketWithIO {
+  server: {
+    io?: SocketIOServer;
+  };
+}
 
 export default function SocketHandler(req: NextApiRequest, res: NextApiResponse) {
   // WebSockets不使用标准的HTTP响应模式
-  if (!(res.socket as any).server.io) {
+  if (!((res.socket as unknown as SocketWithIO).server.io)) {
     console.log('初始化Socket.io服务');
     
-    const httpServer: NetServer = (res.socket as any).server;
+    const httpServer: NetServer = (res.socket as unknown as SocketWithIO).server as NetServer;
     const io = new SocketIOServer(httpServer, {
       path: '/api/socketio',
     });
@@ -51,7 +78,7 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse)
         // 清理房间数据
         for (const roomId in rooms) {
           const room = rooms[roomId];
-          const playerIndex = room.players.findIndex((p: any) => p.id === socket.id);
+          const playerIndex = room.players.findIndex((p: Player) => p.id === socket.id);
           
           if (playerIndex !== -1) {
             // 处理玩家离开房间的逻辑...
@@ -68,7 +95,7 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // 将io实例存储在res.socket.server上
-    (res.socket as any).server.io = io;
+    (res.socket as unknown as SocketWithIO).server.io = io;
   } else {
     console.log('Socket.io已初始化');
   }
