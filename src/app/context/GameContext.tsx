@@ -79,8 +79,35 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // 客户端才能初始化socket
     if (typeof window !== 'undefined') {
-      const socketInstance = io();
+      // 为Vercel环境优化Socket.io连接设置
+      const socketOptions = {
+        transports: ['polling', 'websocket'],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        forceNew: true
+      };
+      
+      // 获取当前URL，用于自适应连接到不同环境
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = hostname === 'localhost' ? ':3000' : '';
+      const url = `${protocol}//${hostname}${port}`;
+      
+      const socketInstance = io(url, socketOptions);
       setSocket(socketInstance);
+
+      // 添加连接监控
+      socketInstance.on('connect', () => {
+        console.log('Socket.io连接成功');
+      });
+      
+      socketInstance.on('connect_error', (error) => {
+        console.error('Socket.io连接错误:', error);
+        setGameState(prev => ({
+          ...prev,
+          error: "服务器连接失败，请刷新页面重试"
+        }));
+      });
 
       return () => {
         socketInstance.disconnect();

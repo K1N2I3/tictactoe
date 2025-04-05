@@ -11,13 +11,27 @@ const handle = app.getRequestHandler();
 // 存储游戏房间信息
 const rooms = {};
 
+// 检查是否在Vercel环境中运行
+const isVercel = process.env.VERCEL || false;
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });
 
-  const io = new Server(server);
+  // 为Vercel环境优化Socket.io配置
+  const io = new Server(server, {
+    cors: {
+      origin: "*", // 生产环境中应该限制为您的域名
+      methods: ["GET", "POST"]
+    },
+    // 添加轮询支持，这对无服务器环境很重要
+    transports: ['polling', 'websocket'],
+    // 减少重连尝试时间，优化用户体验
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5
+  });
 
   io.on('connection', (socket) => {
     console.log('用户连接:', socket.id);
@@ -300,9 +314,11 @@ app.prepare().then(() => {
     });
   });
 
-  server.listen(3000, (err) => {
+  // 使用环境变量指定端口，这对Vercel部署很重要
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, (err) => {
     if (err) throw err;
-    console.log('> 服务器已在 http://localhost:3000 启动');
+    console.log(`> 服务器已在 http://localhost:${PORT} 启动`);
   });
 });
 
