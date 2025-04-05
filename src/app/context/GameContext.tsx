@@ -149,7 +149,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // 游戏结束
-    socket.on('gameOver', ({ board, winner, winnerSymbol, isDraw }) => {
+    socket.on('gameOver', ({ board, winner, isDraw }) => {
       setGameState(prev => ({
         ...prev,
         board,
